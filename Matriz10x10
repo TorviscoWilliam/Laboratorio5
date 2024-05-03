@@ -1,0 +1,183 @@
+using System;
+using System.Collections.Generic;
+
+class Program
+{
+    static void Main()
+    {
+        // Crear una matriz de 10x10 
+        char[,] matriz = new char[10, 10];
+        // Asignamos "A" en la septima, primera columna
+        matriz[9, 0] = 'A';
+        // Asignamos "B" en la tercera fila, última columna
+        matriz[8, 6] = 'B';
+        //Asignamos "1" a las partes de la matriz que seran paredes
+        matriz[4, 0] = '1';
+        matriz[4, 1] = '1';
+        matriz[4, 2] = '1';
+        matriz[3, 3] = '1';
+        matriz[2, 3] = '1';
+        matriz[5, 4] = '1';
+        matriz[6, 4] = '1';
+        matriz[7, 4] = '1';
+        matriz[8, 4] = '1';
+        matriz[9, 4] = '1';
+        matriz[5, 5] = '1';
+        matriz[5, 6] = '1';
+        matriz[2, 7] = '1';
+        matriz[3, 7] = '1';
+        matriz[4, 7] = '1';
+        matriz[5, 7] = '1';
+
+        List<(int, int)> shortestPath = FindShortestPath(matriz);
+
+        // Marcar el camino más corto en la matriz con '*'
+        foreach (var (row, col) in shortestPath)
+        {
+            matriz[row, col] = '*';
+        }
+
+        // Mostrar la matriz
+        for (int i = 0; i < 10; i++)
+        {
+            for (int j = 0; j < 10; j++)
+            {
+                Console.Write(matriz[i, j] == '\0' ? "0" : matriz[i, j].ToString());
+            }
+            Console.WriteLine();
+        }
+    }
+
+    static List<(int, int)> FindShortestPath(char[,] matriz)
+    {
+        int[,] distances = new int[matriz.GetLength(0), matriz.GetLength(1)];
+        bool[,] visited = new bool[matriz.GetLength(0), matriz.GetLength(1)];
+        PriorityQueue<(int, int)> queue = new PriorityQueue<(int, int)>();
+
+        // Definir el nodo inicial
+        (int, int) startNode = FindPosition(matriz, 'A');
+        queue.Enqueue(startNode, 0);
+        distances[startNode.Item1, startNode.Item2] = 0;
+
+        // Direcciones de movimiento (arriba, abajo, izquierda, derecha)
+        int[] dx = { -1, 1, 0, 0 };
+        int[] dy = { 0, 0, -1, 1 };
+
+        while (queue.Count > 0)
+        {
+            var (row, col) = queue.Dequeue();
+            visited[row, col] = true;
+
+            // Si el nodo actual es el nodo objetivo 'B'
+            if (matriz[row, col] == 'B')
+            {
+                return ReconstructPath(distances, startNode, (row, col));
+            }
+
+            // Explorar los nodos vecinos
+            for (int i = 0; i < 4; i++)
+            {
+                int newRow = row + dx[i];
+                int newCol = col + dy[i];
+
+                // Verificar límites de la matriz y si el nodo es válido para explorar
+                if (newRow >= 0 && newRow < matriz.GetLength(0) && newCol >= 0 && newCol < matriz.GetLength(1)
+                    && matriz[newRow, newCol] != '1' && !visited[newRow, newCol])
+                {
+                    // Calcular el nuevo costo acumulado
+                    int newDistance = distances[row, col] + 1;
+
+                    // Si el nuevo costo es menor que el costo existente, actualizar el costo
+                    if (newDistance < distances[newRow, newCol] || distances[newRow, newCol] == 0)
+                    {
+                        distances[newRow, newCol] = newDistance;
+                        queue.Enqueue((newRow, newCol), newDistance);
+                    }
+                }
+            }
+        }
+
+        // Si no se puede llegar al nodo objetivo 'B'
+        return new List<(int, int)>();
+    }
+
+    static (int, int) FindPosition(char[,] matriz, char target)
+    {
+        for (int i = 0; i < matriz.GetLength(0); i++)
+        {
+            for (int j = 0; j < matriz.GetLength(1); j++)
+            {
+                if (matriz[i, j] == target)
+                {
+                    return (i, j);
+                }
+            }
+        }
+        throw new ArgumentException("Target not found in matrix.");
+    }
+
+    static List<(int, int)> ReconstructPath(int[,] distances, (int, int) start, (int, int) end)
+    {
+        List<(int, int)> path = new List<(int, int)>();
+        var current = end;
+
+        while (current != start)
+        {
+            path.Add(current);
+            int row = current.Item1;
+            int col = current.Item2;
+
+            // Direcciones de movimiento (arriba, abajo, izquierda, derecha)
+            int[] dx = { -1, 1, 0, 0 };
+            int[] dy = { 0, 0, -1, 1 };
+
+            // Buscar el nodo padre con el menor costo
+            for (int i = 0; i < 4; i++)
+            {
+                int newRow = row + dx[i];
+                int newCol = col + dy[i];
+
+                if (newRow >= 0 && newRow < distances.GetLength(0) && newCol >= 0 && newCol < distances.GetLength(1)
+                    && distances[newRow, newCol] == distances[row, col] - 1)
+                {
+                    current = (newRow, newCol);
+                    break;
+                }
+            }
+        }
+
+        path.Add(start);
+        path.Reverse();
+        return path;
+    }
+}
+
+// Clase para la cola de prioridad
+class PriorityQueue<T>
+{
+    private SortedDictionary<int, Queue<T>> _dict = new SortedDictionary<int, Queue<T>>();
+
+    public int Count { get; private set; }
+
+    public void Enqueue(T item, int priority)
+    {
+        if (!_dict.ContainsKey(priority))
+            _dict[priority] = new Queue<T>();
+
+        _dict[priority].Enqueue(item);
+        Count++;
+    }
+
+    public T Dequeue()
+    {
+        if (Count == 0)
+            throw new InvalidOperationException("Queue is empty");
+
+        var item = _dict.First().Value.Dequeue();
+        if (_dict.First().Value.Count == 0)
+            _dict.Remove(_dict.First().Key);
+
+        Count--;
+        return item;
+    }
+}
